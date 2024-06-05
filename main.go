@@ -1,13 +1,9 @@
 package main
 
 import (
-	"envim/validate"
+	"envim/cmd"
 )
 
 func main() {
-
-  _, err := validate.Validate("envim.lua")
-  if err != nil {
-    panic(err)
-  }
+  cmd.Execute()
 }
