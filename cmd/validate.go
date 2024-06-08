@@ -28,5 +28,4 @@ var validateCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(validateCmd)
-  validateCmd.Flags().StringP("file", "f", "envim.lua", "name of the config file")
 }
