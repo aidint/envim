@@ -2,7 +2,6 @@ package validate
 
 import (
 	"errors"
-
 	"github.com/yuin/gopher-lua"
 )
 

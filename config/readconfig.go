@@ -34,6 +34,7 @@ func ReadConfig(file string) (map[string]lua.LValue, error) {
 				return keyValues, errors.New("missing key: " + key)
 			} else {
           keyValues[key] = _val
+          _val.Type()
       }
 
 		}
