@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"envim/install"
 	"fmt"
+	"log"
+
 	"github.com/spf13/cobra"
-  "envim/install"
 )
 
 var installCmd = &cobra.Command{
@@ -28,13 +30,13 @@ can be overwriten by using the --force flag.`,
 
     installed, err := install.Install(file, force)
     if err != nil {
-      fmt.Println(err)
+      log.Fatal(err)
       return
     }
     if !installed {
-      fmt.Println("Installation failed")
+      fmt.Println("Installation failed.")
     } else {
-      fmt.Println("Installation successful")
+      fmt.Println("Installation succeeded.")
     }
 	},
 }
