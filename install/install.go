@@ -23,7 +23,20 @@ func init() {
 	envimDir = path.Join(homeDir, ".envim")
 }
 
-func installNvim(nvim_version string) error {
+func installNvim(nvim_version string, force bool) error {
+
+	dir := path.Join(envimDir, "versions", nvim_version)
+	if res, err := os.Stat(dir); err == nil {
+		if !res.IsDir() {
+			os.Remove(dir)
+		} else if !force {
+			log.Printf("Neovim version %s already installed. Skipping...\n", nvim_version)
+			return nil
+		} else if force {
+			log.Printf("Neovim version %s already installed. Forcing reinstallation...\n", nvim_version)
+			os.RemoveAll(dir)
+		}
+	}
 
 	log.Printf("Downloading neovim version %s\n", nvim_version)
 	_, err := git.PlainClone(path.Join(envimDir, "versions", nvim_version), false, &git.CloneOptions{
@@ -38,15 +51,16 @@ func installNvim(nvim_version string) error {
 	}
 
 	log.Printf("Building neovim version %s\n", nvim_version)
-	e := exec.Command("make", "CMAKE_BUILD_TYPE=RelWithDebInfo", "CMAKE_INSTALL_PREFIX="+path.Join(envimDir, "versions", nvim_version, "bin"))
-	e.Stdout = os.Stdout
+	e := exec.Command("make", "CMAKE_BUILD_TYPE=RelWithDebInfo", "CMAKE_INSTALL_PREFIX="+path.Join(envimDir, "versions", nvim_version, "envim"))
+	e.Dir = dir
 	err = e.Run()
 	if err != nil {
 		return err
 	}
 
+	log.Printf("Installing neovim version %s\n", nvim_version)
 	e = exec.Command("make", "install")
-	e.Stdout = os.Stdout
+	e.Dir = dir
 	err = e.Run()
 	if err != nil {
 		return err
@@ -61,7 +75,7 @@ func Install(file string, force bool) (bool, error) {
 	}
 
 	if nvim_version, ok := configMap["nvim_version"].(lua.LString); ok {
-		err = installNvim(nvim_version.String())
+		err = installNvim(nvim_version.String(), force)
 	} else {
 		return false, errors.New("nvim_version must be a string")
 	}
