@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strings"
 )
 
 var path string
@@ -62,7 +63,17 @@ func CreateDotNvim() error {
 }
 
 func AppendToGitignore() error {
-  
+
+	dat, err := os.ReadFile(".gitignore")
+	if err == nil {
+		for _, line := range strings.Split(string(dat), "\n") {
+			if line == ".envim" || line == ".envim/*" {
+				log.Printf(".envim already appended to .gitignore in %s\n", path)
+				return nil
+			}
+		}
+	}
+
 	file, err := os.OpenFile(".gitignore", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 
 	if err != nil {
