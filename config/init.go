@@ -30,7 +30,7 @@ func init() {
 
 	if m, err := os.Stat(path.Join(EnvimDir, "versions")); err != nil {
 		if os.IsNotExist(err) {
-			if err := os.Mkdir(path.Join(EnvimDir, "versions"), 0755); err != nil {
+			if err := os.Mkdir(path.Join(EnvimDir, "versions"), 0777); err != nil {
 				panic(err)
 			}
 		} else {

@@ -1,11 +1,10 @@
-/*
-Copyright © 2024 NAME HERE <EMAIL ADDRESS>
-
-*/
 package cmd
 
 import (
+	env "envim/environment"
 	"fmt"
+	"log"
+	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -18,12 +17,47 @@ If there is already a config file, the creation of the config will be skipped.
 If used with -g, --gitignore flag, it will append the .envim directory to the .gitignore file.
 If used with -d, --dotnvim flag, it will create the .nvim folder in the current directory as well.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("init called")
+		gitignore, err := cmd.Flags().GetBool("gitignore")
+		if err != nil {
+			fmt.Println("Error parsing gitignore flag")
+			return
+		}
+
+		dotnvim, err := cmd.Flags().GetBool("dotnvim")
+		if err != nil {
+			fmt.Println("Error parsing dotnvim flag")
+			return
+		}
+
+		validationErrs := env.ValidateCreation(map[string]bool{"dotnvim": dotnvim, "gitignore": gitignore})
+		if len(validationErrs) > 0 {
+			for _, err := range validationErrs {
+				log.Println(err)
+			}
+			os.Exit(1)
+		}
+
+		if err := env.CreateEnvironment(); err != nil {
+			log.Fatal(err)
+		}
+
+    if dotnvim {
+      if err := env.CreateDotNvim(); err != nil {
+        log.Fatal(err)
+      }
+    }
+
+    if gitignore {
+      if err := env.AppendToGitignore(); err != nil {
+        log.Fatal(err)
+      }
+    }
+
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(initCmd)
-  initCmd.Flags().BoolP("gitignore", "g", false, "Append .envim to .gitignore")
-  initCmd.Flags().BoolP("dotnvim", "d", false, "Create .nvim directory")
+	initCmd.Flags().BoolP("gitignore", "g", false, "Append .envim to .gitignore")
+	initCmd.Flags().BoolP("dotnvim", "d", false, "Create .nvim directory")
 }
