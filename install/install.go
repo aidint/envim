@@ -13,19 +13,9 @@ import (
 	"github.com/yuin/gopher-lua"
 )
 
-var envimDir string
-
-func init() {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatal("Could not get user home directory")
-	}
-	envimDir = path.Join(homeDir, ".envim")
-}
-
 func installNvim(nvim_version string, force bool) error {
 
-	dir := path.Join(envimDir, "versions", nvim_version)
+	dir := path.Join(config.EnvimDir, "versions", nvim_version)
 	if res, err := os.Stat(dir); err == nil {
 		if !res.IsDir() {
 			os.Remove(dir)
@@ -39,7 +29,7 @@ func installNvim(nvim_version string, force bool) error {
 	}
 
 	log.Printf("Downloading neovim version %s\n", nvim_version)
-	_, err := git.PlainClone(path.Join(envimDir, "versions", nvim_version), false, &git.CloneOptions{
+	_, err := git.PlainClone(path.Join(config.EnvimDir, "versions", nvim_version), false, &git.CloneOptions{
 		URL:           "https://github.com/neovim/neovim",
 		SingleBranch:  true,
 		Depth:         1,
@@ -51,7 +41,7 @@ func installNvim(nvim_version string, force bool) error {
 	}
 
 	log.Printf("Building neovim version %s\n", nvim_version)
-	e := exec.Command("make", "CMAKE_BUILD_TYPE=RelWithDebInfo", "CMAKE_INSTALL_PREFIX="+path.Join(envimDir, "versions", nvim_version, "envim"))
+	e := exec.Command("make", "CMAKE_BUILD_TYPE=RelWithDebInfo", "CMAKE_INSTALL_PREFIX="+path.Join(config.EnvimDir, "versions", nvim_version, "envim"))
 	e.Dir = dir
 	err = e.Run()
 	if err != nil {
