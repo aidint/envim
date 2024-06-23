@@ -1,11 +1,14 @@
 package environment
 
 import (
+	"envim/luafiles"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strings"
 )
+
 
 var path string
 
@@ -13,7 +16,12 @@ func init() {
 	path, _ = os.Getwd()
 }
 
-func ValidateCreation(flags map[string]bool) []error {
+type FlagData struct {
+  Active bool
+  Value string
+}
+
+func ValidateCreation(flags map[string]FlagData) []error {
 
 	var errs []error
 	if res, err := os.Stat(".envim"); err == nil {
@@ -25,7 +33,7 @@ func ValidateCreation(flags map[string]bool) []error {
 	}
 
 	for key, val := range flags {
-		if val {
+		if val.Active {
 			switch key {
 			case "dotnvim":
 				if res, err := os.Stat(".nvim"); err == nil {
@@ -39,6 +47,10 @@ func ValidateCreation(flags map[string]bool) []error {
 				if res, err := os.Stat(".gitignore"); err == nil && res.IsDir() {
 					errs = append(errs, errors.New("There is a folder named '.gitignore' in the current directory"))
 				}
+      case "file":
+        if _, err := os.Stat(val.Value); err == nil {
+          errs = append(errs, errors.New(fmt.Sprintf("%s already exists in the current directory", val.Value)))
+        }
 			}
 		}
 	}
@@ -86,4 +98,12 @@ func AppendToGitignore() error {
 	}
 	log.Printf(".envim appended to .gitignore in %s\n", path)
 	return nil
+}
+
+func CreateConfigFile(configFile string) error {
+  if err := os.WriteFile(configFile, []byte(luafiles.SampleConfig), 0644); err != nil {
+    return err
+  }
+  log.Printf("%s file created in %s\n", configFile, path)
+  return nil
 }
