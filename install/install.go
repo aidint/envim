@@ -13,7 +13,7 @@ import (
 	"github.com/yuin/gopher-lua"
 )
 
-func installNvim(nvim_version string, force bool) error {
+func InstallNvim(nvim_version string, force bool) error {
 
 	dir := path.Join(config.EnvimDir, "versions", nvim_version)
 	if res, err := os.Stat(dir); err == nil {
@@ -65,7 +65,7 @@ func Install(file string, force bool) (bool, error) {
 	}
 
 	if nvim_version, ok := configMap["nvim_version"].(lua.LString); ok {
-		err = installNvim(nvim_version.String(), force)
+		err = InstallNvim(nvim_version.String(), force)
 	} else {
 		return false, errors.New("nvim_version must be a string")
 	}
