@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"envim/environment"
 	"envim/install"
 	"fmt"
 	"log"
@@ -17,6 +18,11 @@ it will not use the local enviornment, rather it will install it in a central lo
 The command will skip neovim installation if it is already installed in the central location. This behaviour
 can be overwriten by using the --force flag.`,
 	Run: func(cmd *cobra.Command, args []string) {
+    //Validate evironment
+    if err := environment.ValidateEnvironment(); err != nil {
+      log.Fatal(err)
+    }
+
 		file, err := cmd.Flags().GetString("file")
 		if err != nil {
 			fmt.Println("Error parsing file name")
