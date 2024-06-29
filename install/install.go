@@ -1,13 +1,13 @@
 package install
 
 import (
-	"envim/config"
+	"envim/initialize"
+  "envim/config"
 	"errors"
 	"log"
 	"os"
 	"os/exec"
 	"path"
-
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/yuin/gopher-lua"
@@ -15,7 +15,7 @@ import (
 
 func InstallNvim(nvim_version string, force bool) error {
 
-	dir := path.Join(config.EnvimDir, "versions", nvim_version)
+	dir := path.Join(initialize.EnvimDir, "versions", nvim_version)
 	if res, err := os.Stat(dir); err == nil {
 		if !res.IsDir() {
 			os.Remove(dir)
@@ -29,7 +29,7 @@ func InstallNvim(nvim_version string, force bool) error {
 	}
 
 	log.Printf("Downloading neovim version %s\n", nvim_version)
-	_, err := git.PlainClone(path.Join(config.EnvimDir, "versions", nvim_version), false, &git.CloneOptions{
+	_, err := git.PlainClone(path.Join(initialize.EnvimDir, "versions", nvim_version), false, &git.CloneOptions{
 		URL:           "https://github.com/neovim/neovim",
 		SingleBranch:  true,
 		Depth:         1,
@@ -41,7 +41,7 @@ func InstallNvim(nvim_version string, force bool) error {
 	}
 
 	log.Printf("Building neovim version %s\n", nvim_version)
-	e := exec.Command("make", "CMAKE_BUILD_TYPE=RelWithDebInfo", "CMAKE_INSTALL_PREFIX="+path.Join(config.EnvimDir, "versions", nvim_version, "envim"))
+	e := exec.Command("make", "CMAKE_BUILD_TYPE=RelWithDebInfo", "CMAKE_INSTALL_PREFIX="+path.Join(initialize.EnvimDir, "versions", nvim_version, "envim"))
 	e.Dir = dir
 	err = e.Run()
 	if err != nil {

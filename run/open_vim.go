@@ -1,14 +1,14 @@
 package run
 
 import (
-	"envim/config"
+	"envim/initialize"
 	"os"
 	"os/exec"
 	"path"
 )
 
 func Run(nvim_version string, environment map[string]string) error {
-  nvim := path.Join(config.EnvimDir, "versions", nvim_version, "envim", "bin/nvim")
+  nvim := path.Join(initialize.EnvimDir, "versions", nvim_version, "envim", "bin/nvim")
   cmd := exec.Command(nvim)
   cmd.Stdout = os.Stdout
   cmd.Stdin = os.Stdin
