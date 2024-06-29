@@ -6,104 +6,90 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
+	"path"
 )
 
-
-var path string
+var workingDir string
 
 func init() {
-	path, _ = os.Getwd()
+	workingDir, _ = os.Getwd()
 }
 
 type FlagData struct {
-  Active bool
-  Value string
+	Active bool
+	Value  string
 }
 
-func ValidateCreation(flags map[string]FlagData) []error {
+func CreateEnvironment() (string, error) {
+	environmentPath := path.Join(workingDir, ".envim")
 
-	var errs []error
 	if res, err := os.Stat(".envim"); err == nil {
 		if res.IsDir() {
-			errs = append(errs, errors.New("Environment folder already exists in "+path))
+			return environmentPath, errors.New("Environment folder already exists in " + workingDir)
 		} else {
-			errs = append(errs, errors.New("A file by the name '.envim' already exists in the current directory"))
+			return environmentPath, errors.New("A file by the name '.envim' already exists in the current directory")
 		}
 	}
 
-	for key, val := range flags {
-		if val.Active {
-			switch key {
-			case "dotnvim":
-				if res, err := os.Stat(".nvim"); err == nil {
-					if res.IsDir() {
-						errs = append(errs, errors.New("'.nvim' folder already exists in "+path))
-					} else {
-						errs = append(errs, errors.New("A file by the name '.nvim' already exists in the current directory"))
-					}
-				}
-			case "gitignore":
-				if res, err := os.Stat(".gitignore"); err == nil && res.IsDir() {
-					errs = append(errs, errors.New("There is a folder named '.gitignore' in the current directory"))
-				}
-      case "file":
-        if _, err := os.Stat(val.Value); err == nil {
-          errs = append(errs, errors.New(fmt.Sprintf("%s already exists in the current directory", val.Value)))
-        }
-			}
-		}
-	}
-
-	return errs
-}
-
-func CreateEnvironment() error {
 	if err := os.Mkdir(".envim", 0755); err != nil {
-		return err
+		return environmentPath, err
 	}
-	log.Printf("Environment created in %s\n", path)
-	return nil
+
+  if err := createGitIgnore(); err != nil {
+    return environmentPath, err
+  }
+
+	return environmentPath, nil
 }
 
-func CreateDotNvim() error {
-	if err := os.Mkdir(".nvim", 0755); err != nil {
-		return err
-	}
-	log.Printf("Dotnvim folder created in %s\n", path)
-	return nil
-}
+func CreateDotNvim() (string, error) {
+	dotnvimPath := path.Join(workingDir, ".nvim")
 
-func AppendToGitignore() error {
-
-	dat, err := os.ReadFile(".gitignore")
-	if err == nil {
-		for _, line := range strings.Split(string(dat), "\n") {
-			if line == ".envim" || line == ".envim/*" {
-				log.Printf(".envim already appended to .gitignore in %s\n", path)
-				return nil
-			}
+	if res, err := os.Stat(".nvim"); err == nil {
+		if res.IsDir() {
+			return dotnvimPath, errors.New("'.nvim' folder already exists in " + workingDir)
+		} else {
+			return dotnvimPath, errors.New("A file by the name '.nvim' already exists in the current directory")
 		}
 	}
 
-	file, err := os.OpenFile(".gitignore", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err := os.Mkdir(".nvim", 0755); err != nil {
+		return dotnvimPath, err
+	}
+	return dotnvimPath, nil
+}
+
+func createGitIgnore() error {
+
+	file, err := os.OpenFile(path.Join(".envim", ".gitignore"), os.O_CREATE|os.O_WRONLY, 0644)
 
 	if err != nil {
 		return err
 	}
+
 	defer file.Close()
 
-	if _, err := file.WriteString(".envim\n"); err != nil {
+	if _, err := file.WriteString("*"); err != nil {
 		return err
 	}
-	log.Printf(".envim appended to .gitignore in %s\n", path)
 	return nil
 }
 
-func CreateConfigFile(configFile string) error {
-  if err := os.WriteFile(configFile, []byte(luafiles.SampleConfig), 0644); err != nil {
-    return err
+func CreateConfigFile(configFile string) (string, error) {
+
+  var configFilePath string
+  // Check if the path is absolute
+  if configFilePath = path.Join(workingDir, configFile); path.IsAbs(configFile) {
+    configFilePath = configFile
   }
-  log.Printf("%s file created in %s\n", configFile, path)
-  return nil
+
+	if _, err := os.Stat(configFile); err == nil {
+		return configFilePath, errors.New(fmt.Sprintf("%s already exists in the current directory", configFile))
+	}
+
+	if err := os.WriteFile(configFile, []byte(luafiles.SampleConfig), 0644); err != nil {
+		return configFilePath, err
+	}
+	log.Printf("%s file created in %s\n", configFile, workingDir)
+	return configFilePath, nil
 }

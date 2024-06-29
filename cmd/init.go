@@ -2,11 +2,8 @@ package cmd
 
 import (
 	env "envim/environment"
-	"fmt"
-	"log"
-	"os"
-
 	"github.com/spf13/cobra"
+	"log"
 )
 
 var initCmd = &cobra.Command{
@@ -19,60 +16,42 @@ If used with -d, --dotnvim flag, it will create the .nvim folder in the current 
 	Run: func(cmd *cobra.Command, args []string) {
 		configFile, err := cmd.Flags().GetString("file")
 		if err != nil {
-			fmt.Println("Error parsing file flag")
-			return
+			log.Fatal("Error parsing file flag")
 		}
 
-		gitignore, err := cmd.Flags().GetBool("gitignore")
 		if err != nil {
-			fmt.Println("Error parsing gitignore flag")
-			return
+			log.Fatal("Error parsing gitignore flag")
 		}
 
 		dotnvim, err := cmd.Flags().GetBool("dotnvim")
 		if err != nil {
-			fmt.Println("Error parsing dotnvim flag")
-			return
+			log.Fatal("Error parsing dotnvim flag")
 		}
 
-		validationErrs := env.ValidateCreation(map[string]env.FlagData{
-			"dotnvim":   {Active: dotnvim, Value: ""},
-			"gitignore": {Active: gitignore, Value: ""},
-			"file":      {Active: true, Value: configFile},
-		})
-
-		if len(validationErrs) > 0 {
-			for _, err := range validationErrs {
-				log.Println(err)
-			}
-			os.Exit(1)
-		}
-
-		if err := env.CreateEnvironment(); err != nil {
+		if filePath, err := env.CreateEnvironment(); err != nil {
 			log.Fatal(err)
-		}
+		} else {
+      log.Println("Environment created in", filePath)
+    }
 
 		if dotnvim {
-			if err := env.CreateDotNvim(); err != nil {
-				log.Fatal(err)
-			}
+			if filePath, err := env.CreateDotNvim(); err != nil {
+				log.Println(err)
+			} else {
+        log.Println(".nvim folder created in", filePath)
+      }
 		}
 
-		if gitignore {
-			if err := env.AppendToGitignore(); err != nil {
-				log.Fatal(err)
-			}
-		}
-
-		if err := env.CreateConfigFile(configFile); err != nil {
-			log.Fatal(err)
-		}
+		if filePath, err := env.CreateConfigFile(configFile); err != nil {
+			log.Println(err)
+		} else {
+      log.Println("Config file created in", filePath)
+    }
 
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(initCmd)
-	initCmd.Flags().BoolP("gitignore", "g", false, "Append .envim to .gitignore")
 	initCmd.Flags().BoolP("dotnvim", "d", false, "Create .nvim directory")
 }
