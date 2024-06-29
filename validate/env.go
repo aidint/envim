@@ -1,4 +1,4 @@
-package initialize
+package validate
 
 import (
 	"errors"
@@ -12,9 +12,10 @@ import (
 func ValidateEnvironment() error {
   if _, err := os.Stat(".envim"); err != nil {
     if os.IsNotExist(err) {
-      return errors.New("envim has not been initialized yet")
+      return errors.New("Envim environment has not been initialized yet")
     }
     return err
   }
   return nil
 }
+

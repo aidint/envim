@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
-	"envim/initialize"
+  "envim/validate"
 	"envim/install"
 	"log"
 	"os"
@@ -20,7 +20,7 @@ The command will skip neovim installation if it is already installed in the cent
 can be overwriten by using the --force flag.`,
 	Run: func(cmd *cobra.Command, args []string) {
     //Validate evironment
-    if err := initialize.ValidateEnvironment(); err != nil {
+    if err := validate.ValidateEnvironment(); err != nil {
       log.Fatal(err)
     }
 
