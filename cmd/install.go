@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"encoding/json"
-  "envim/validate"
+	"envim/config"
 	"envim/install"
+	"envim/validate"
 	"log"
 	"os"
 	"path"
+
 	"github.com/spf13/cobra"
 )
 
@@ -34,13 +36,18 @@ can be overwriten by using the --force flag.`,
 			log.Fatal("Error parsing force flag")
 		}
 
-    m, err := install.Install(file, force)
+    configMap, err := config.ReadConfig(file)
+    if err != nil {
+      log.Fatal(err)
+    }
+
+    installMap, err := install.Install(configMap, force)
     if err != nil {
       log.Fatal(err)
     }
     
-    ps, err := json.MarshalIndent(m, "", "  ")
-    if err := os.WriteFile(path.Join(".envim", "installed.json"), ps, 0644); err != nil {
+    ps, err := json.MarshalIndent(installMap, "", "  ")
+    if err := os.WriteFile(path.Join(".envim", "envim.json"), ps, 0644); err != nil {
       log.Fatal(err)
     }
     log.Printf("Installed dependencies: \n%s", string(ps))

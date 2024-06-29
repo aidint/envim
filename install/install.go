@@ -2,7 +2,6 @@ package install
 
 import (
 	"envim/initialize"
-  "envim/config"
 	"errors"
 	"log"
 	"os"
@@ -59,13 +58,11 @@ func InstallNvim(nvim_version string, force bool) error {
 }
 
 // Returns map of of installed dependencies and their versions
-func Install(file string, force bool) (map[string]string, error) {
-	configMap, err := config.ReadConfig(file)
-	if err != nil {
-		return nil, err
-	}
+func Install(configMap map[string]lua.LValue, force bool) (map[string]string, error) {
 
   m := make(map[string]string)
+
+  var err error
 
 	if nvim_version, ok := configMap["nvim_version"].(lua.LString); ok {
 		err = InstallNvim(nvim_version.String(), force)
