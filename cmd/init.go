@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	env "envim/environment"
+	"envim/initialize"
 	"github.com/spf13/cobra"
 	"log"
 )
@@ -28,21 +28,21 @@ If used with -d, --dotnvim flag, it will create the .nvim folder in the current 
 			log.Fatal("Error parsing dotnvim flag")
 		}
 
-		if filePath, err := env.CreateEnvironment(); err != nil {
+		if filePath, err := initialize.CreateEnvironment(); err != nil {
 			log.Fatal(err)
 		} else {
       log.Println("Environment created in", filePath)
     }
 
 		if dotnvim {
-			if filePath, err := env.CreateDotNvim(); err != nil {
+			if filePath, err := initialize.CreateDotNvim(); err != nil {
 				log.Println(err)
 			} else {
         log.Println(".nvim folder created in", filePath)
       }
 		}
 
-		if filePath, err := env.CreateConfigFile(configFile); err != nil {
+		if filePath, err := initialize.CreateConfigFile(configFile); err != nil {
 			log.Println(err)
 		} else {
       log.Println("Config file created in", filePath)

@@ -1,11 +1,12 @@
 package cmd
 
 import (
-	"envim/environment"
+	"encoding/json"
+	"envim/initialize"
 	"envim/install"
-	"fmt"
 	"log"
-
+	"os"
+	"path"
 	"github.com/spf13/cobra"
 )
 
@@ -19,36 +20,34 @@ The command will skip neovim installation if it is already installed in the cent
 can be overwriten by using the --force flag.`,
 	Run: func(cmd *cobra.Command, args []string) {
     //Validate evironment
-    if err := environment.ValidateEnvironment(); err != nil {
+    if err := initialize.ValidateEnvironment(); err != nil {
       log.Fatal(err)
     }
 
 		file, err := cmd.Flags().GetString("file")
 		if err != nil {
-			fmt.Println("Error parsing file name")
-			return
-		}
-		force, err := cmd.Flags().GetBool("force")
-		if err != nil {
-			fmt.Println("Error parsing force flag")
-			return
+			log.Fatal("Error parsing file name")
 		}
 
-    installed, err := install.Install(file, force)
+		force, err := cmd.Flags().GetBool("force")
+		if err != nil {
+			log.Fatal("Error parsing force flag")
+		}
+
+    m, err := install.Install(file, force)
     if err != nil {
       log.Fatal(err)
-      return
     }
-    if !installed {
-      fmt.Println("Installation failed.")
-    } else {
-      fmt.Println("Installation succeeded.")
+    
+    ps, err := json.MarshalIndent(m, "", "  ")
+    if err := os.WriteFile(path.Join(".envim", "installed.json"), ps, 0644); err != nil {
+      log.Fatal(err)
     }
+    log.Printf("Installed dependencies: \n%s", string(ps))
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(installCmd)
-
 	installCmd.PersistentFlags().Bool("force", false, "Force install")
 }

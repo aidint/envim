@@ -1,4 +1,4 @@
-package environment
+package initialize
 
 import (
 	"envim/luafiles"
