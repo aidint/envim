@@ -20,6 +20,8 @@ func Run(m map[string]interface{}, environment map[string]string, args []string)
   cmd.Stdout = os.Stdout
   cmd.Stdin = os.Stdin
   cmd.Stderr = os.Stderr
+  cmd.Env = append(cmd.Env, os.Environ()...)
+  cmd.Env = append(cmd.Env, exportEnv()...)
   if err := cmd.Run(); err != nil {
     return err
   }
