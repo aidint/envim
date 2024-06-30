@@ -8,8 +8,8 @@ import (
 	"log"
 	"os"
 	"path"
-
 	"github.com/spf13/cobra"
+	lua "github.com/yuin/gopher-lua"
 )
 
 var installCmd = &cobra.Command{
@@ -21,10 +21,10 @@ it will not use the local enviornment, rather it will install it in a central lo
 The command will skip neovim installation if it is already installed in the central location. This behaviour
 can be overwriten by using the --force flag.`,
 	Run: func(cmd *cobra.Command, args []string) {
-    //Validate evironment
-    if err := validate.ValidateEnvironment(); err != nil {
-      log.Fatal(err)
-    }
+		//Validate evironment
+		if err := validate.ValidateEnvironment(); err != nil {
+			log.Fatal(err)
+		}
 
 		file, err := cmd.Flags().GetString("file")
 		if err != nil {
@@ -36,21 +36,24 @@ can be overwriten by using the --force flag.`,
 			log.Fatal("Error parsing force flag")
 		}
 
-    configMap, err := config.ReadConfig(file)
-    if err != nil {
-      log.Fatal(err)
-    }
+		L := lua.NewState()
+    defer L.Close()
 
-    installMap, err := install.Install(configMap, force)
-    if err != nil {
-      log.Fatal(err)
-    }
-    
-    ps, err := json.MarshalIndent(installMap, "", "  ")
-    if err := os.WriteFile(path.Join(".envim", "envim.json"), ps, 0644); err != nil {
-      log.Fatal(err)
-    }
-    log.Printf("Installed dependencies: \n%s", string(ps))
+		configMap, err := config.ReadConfig(L, file)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		installMap, err := install.Install(L, configMap, force)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		ps, err := json.MarshalIndent(installMap, "", "  ")
+		if err := os.WriteFile(path.Join(".envim", "envim.json"), ps, 0644); err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("Installed dependencies: \n%s", string(ps))
 	},
 }
 
