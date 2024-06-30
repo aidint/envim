@@ -58,15 +58,17 @@ func InstallNvim(nvim_version string, force bool) error {
 }
 
 // Returns map of of installed dependencies and their versions
-func Install(configMap map[string]lua.LValue, force bool) (map[string]string, error) {
+func Install(configMap map[string]lua.LValue, force bool) (map[string]interface{}, error) {
 
-  m := make(map[string]string)
+  m := make(map[string]interface{})
 
   var err error
 
 	if nvim_version, ok := configMap["nvim_version"].(lua.LString); ok {
 		err = InstallNvim(nvim_version.String(), force)
-    m["nvim"] = nvim_version.String()
+    m["nvim"] = map[string]string{
+      "version": nvim_version.String(),
+    }
 	} else {
 		return m, errors.New("nvim_version must be a string")
 	}
