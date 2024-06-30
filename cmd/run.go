@@ -4,6 +4,7 @@ Copyright © 2024 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"envim/config"
 	"envim/run"
 	"envim/validate"
 	"log"
@@ -21,7 +22,7 @@ var runCmd = &cobra.Command{
   This behaviour can be overwriten by using the -c, --conservative flag.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-    conservative := slices.Contains(args, "--conservative")
+		conservative := slices.Contains(args, "--conservative")
 		// run nvim with arguments if environment is not initialized
 		if !validate.EnvimExists && !conservative {
 			run.RunDefault(args)
@@ -31,7 +32,13 @@ var runCmd = &cobra.Command{
 		if err := validate.ValidateEnvironment(); err != nil {
 			log.Fatal(err)
 		}
-		if err := run.Run("v0.10.0", nil, args); err != nil {
+
+		m, err := config.ReadEnv()
+		if err != nil {
+			log.Fatalf("Error in environment: %s\n", err)
+		}
+
+		if err := run.Run(m, nil, args); err != nil {
 			log.Fatal(err)
 		}
 	},
@@ -39,6 +46,6 @@ var runCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(runCmd)
-  runCmd.Flags().Bool("conservative", false, "Don't alias nvim if envim is not initialized")
+	runCmd.Flags().Bool("conservative", false, "Don't alias nvim if envim is not initialized")
 	runCmd.DisableFlagParsing = true
 }

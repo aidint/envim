@@ -47,7 +47,7 @@ can be overwriten by using the --force flag.`,
     }
     
     ps, err := json.MarshalIndent(installMap, "", "  ")
-    if err := os.WriteFile(path.Join(".envim", "installed.json"), ps, 0644); err != nil {
+    if err := os.WriteFile(path.Join(".envim", "envim.json"), ps, 0644); err != nil {
       log.Fatal(err)
     }
     log.Printf("Installed dependencies: \n%s", string(ps))
