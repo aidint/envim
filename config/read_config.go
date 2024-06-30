@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/yuin/gopher-lua"
 )
@@ -47,6 +48,8 @@ func GetStringValue(L *lua.LState, val lua.LValue, args ...lua.LValue) (string, 
 	switch v := val.(type) {
 	case lua.LString:
 		return v.String(), nil
+  case lua.LNumber:
+    return strconv.Itoa(int(v)), nil
 	case *lua.LFunction:
 		if err := L.CallByParam(lua.P{
 			Fn:      v,
