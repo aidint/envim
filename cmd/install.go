@@ -44,6 +44,13 @@ can be overwriten by using the --force flag.`,
 			log.Fatal(err)
 		}
 
+    bytes, err := json.MarshalIndent(configMap, "", "  ")
+    if err != nil {
+      log.Fatal("Error marshalling config map")
+    }
+
+    err = os.WriteFile(path.Join(".envim", "config.json"), bytes, 0644)
+
 		installMap, err := install.Install(L, configMap, force)
 		if err != nil {
 			log.Fatal(err)
