@@ -10,26 +10,29 @@ import (
 
 var keys = [...]string{"dependencies", "nvim_version", "plugin_manager"}
 
-type TableConfig map[string]interface{}
+type ConfigTable map[string]interface{}
 
-func (t TableConfig) GetValue(keys ...string) (interface{}, error) {
+func (t ConfigTable) GetValue(keys ...string) (interface{}, error) {
 	var value interface{}
+  keyName := keys[0]
   value, ok := t[keys[0]]
   if !ok {
-    return nil, errors.New(fmt.Sprintf("Key {%s} not found", keys[0]))
+    return nil, errors.New(fmt.Sprintf("Key {%s} not found", keyName))
   }
 
   for _, key := range keys[1:] {
+
+    keyName += ">" + key
 		if v, ok := value.(map[string]interface{})[key]; ok {
 			value = v
 		} else {
-			return nil, errors.New(fmt.Sprintf("Key {%s} not found", key))
+			return nil, errors.New(fmt.Sprintf("Key {%s} not found", keyName))
 		}
 	}
 	return value, nil
 }
 
-func GetStringValue(L *lua.LState, val lua.LValue, args ...lua.LValue) (string, error) {
+func getStringValue(L *lua.LState, val lua.LValue, args ...lua.LValue) (string, error) {
 	switch v := val.(type) {
 	case lua.LString:
 		return v.String(), nil
@@ -44,7 +47,7 @@ func GetStringValue(L *lua.LState, val lua.LValue, args ...lua.LValue) (string, 
 			return "", errors.New(fmt.Sprintf("Lua function error -> %s", err))
 		}
 		lv := L.Get(-1)
-		if s, err := GetStringValue(L, lv, args...); err == nil {
+		if s, err := getStringValue(L, lv, args...); err == nil {
 			return s, nil
 		} else {
 			return "", errors.New("Lua function must return a string-compatible value")
@@ -56,7 +59,7 @@ func GetStringValue(L *lua.LState, val lua.LValue, args ...lua.LValue) (string, 
 
 // A function that reads a table that stores only string-compatible values
 // or tables with the same property. String-compatible values are: strings, numbers and functions that return strings
-func ReadTable(L *lua.LState, table *lua.LTable, args ...lua.LValue) (TableConfig, error) {
+func ReadTable(L *lua.LState, table *lua.LTable, args ...lua.LValue) (ConfigTable, error) {
 
 	keyValues := make(map[lua.LValue]lua.LValue)
 	table.ForEach(func(key, val lua.LValue) {
@@ -67,7 +70,7 @@ func ReadTable(L *lua.LState, table *lua.LTable, args ...lua.LValue) (TableConfi
 	for k, v := range keyValues {
 		var key string
 		var value interface{}
-		key, err := GetStringValue(L, k, args...)
+		key, err := getStringValue(L, k, args...)
 		if err != nil {
 			return nil, errors.New(fmt.Sprintf("Error reading key -> %s", err))
 		}
@@ -79,7 +82,7 @@ func ReadTable(L *lua.LState, table *lua.LTable, args ...lua.LValue) (TableConfi
 			}
 
 		case lua.LTNumber, lua.LTString, lua.LTFunction:
-			value, err = GetStringValue(L, v, args...)
+			value, err = getStringValue(L, v, args...)
 			if err != nil {
 				return nil, errors.New(fmt.Sprintf("Error reading value for key {%s} -> %s", key, err))
 			}
@@ -92,7 +95,7 @@ func ReadTable(L *lua.LState, table *lua.LTable, args ...lua.LValue) (TableConfi
 	return m, nil
 }
 
-func ReadConfig(L *lua.LState, file string, args ...lua.LValue) (map[string]interface{}, error) {
+func ReadConfig(L *lua.LState, file string, args ...lua.LValue) (ConfigTable, error) {
 
 	// Make a map to hold the key values
 	keyValues := make(map[string]interface{})
