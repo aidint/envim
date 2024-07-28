@@ -1,13 +1,16 @@
 package handler
 
 import (
+	"fmt"
 	"log"
+	"os"
 )
 
 type HandlerType int
 
 const (
 	ChainHandlerType = iota
+	CreateFolderHandlerType
 )
 
 type HandlerState int
@@ -63,19 +66,70 @@ func (c *ChainHandler) Execute(state map[HandlerType]Handler) {
 		log.Panic("Cannot execute a chain that has already been executed.")
 	}
 
-	c.exeMap = state
+	c.exeMap = make(map[HandlerType]Handler)
+
+	if state != nil {
+		c.exeMap = state
+	}
 
 	for _, h := range c.chain {
 		h.Execute(c.exeMap)
-		if h.GetState() == HandlerError {
-			c.errors = append(c.errors, h.GetErrors()...)
-			if !h.ShouldProceed() {
-				c.proceed = false
-				c.state = HandlerError
-			}
+		c.errors = append(c.errors, h.GetErrors()...)
+
+		if !h.ShouldProceed() {
+			c.proceed = false
+			c.state = HandlerError
+      return
 		}
+
 		c.exeMap[h.GetType()] = h
 	}
 	c.proceed = true
 	c.state = HandlerSuccess
+}
+
+// CreateFolderHandler
+
+type CreateFolder struct {
+	state      HandlerState
+	errors     []error
+	FolderName string
+}
+
+func (cf *CreateFolder) GetType() HandlerType {
+	return CreateFolderHandlerType
+}
+
+func (cf *CreateFolder) GetState() HandlerState {
+	return cf.state
+}
+
+func (cf *CreateFolder) GetErrors() []error {
+	return cf.errors
+}
+
+func (cf *CreateFolder) Execute(state map[HandlerType]Handler) {
+	if cf.state != HandlerNotStarted {
+		log.Panic("Cannot execute a handler that has already been executed.")
+	}
+
+	if info, err := os.Stat(cf.FolderName); os.IsNotExist(err) {
+		if err := os.MkdirAll(cf.FolderName, 0755); err != nil {
+			cf.errors = append(cf.errors, fmt.Errorf("Create Folder %s error: %s", cf.FolderName, err.Error()))
+			cf.state = HandlerError
+			return
+		}
+		cf.state = HandlerSuccess
+		return
+	} else if info.IsDir() {
+		cf.errors = append(cf.errors, fmt.Errorf("Create Folder %s error: %s", cf.FolderName, "Folder already exists"))
+		cf.state = HandlerSuccess
+		return
+	}
+	cf.state = HandlerError
+	cf.errors = append(cf.errors, fmt.Errorf("Create Folder %s error: A file exists with the same name", cf.FolderName))
+}
+
+func (cf *CreateFolder) ShouldProceed() bool {
+	return cf.state == HandlerSuccess
 }
