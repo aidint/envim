@@ -1,16 +1,16 @@
-package handler
+package handlers
 
 import (
-	"fmt"
 	"log"
-	"os"
 )
 
 type HandlerType int
 
 const (
-	ChainHandlerType = iota
-	CreateFolderHandlerType
+	ChainType = iota
+  StatPathType
+	CreateFolderType
+  CheckEnvironmentType
 )
 
 type HandlerState int
@@ -38,7 +38,7 @@ type ChainHandler struct {
 }
 
 func (c *ChainHandler) GetType() HandlerType {
-	return ChainHandlerType
+	return ChainType
 }
 
 func (c *ChainHandler) ShouldProceed() bool {
@@ -88,48 +88,3 @@ func (c *ChainHandler) Execute(state map[HandlerType]Handler) {
 	c.state = HandlerSuccess
 }
 
-// CreateFolderHandler
-
-type CreateFolder struct {
-	state      HandlerState
-	errors     []error
-	FolderName string
-}
-
-func (cf *CreateFolder) GetType() HandlerType {
-	return CreateFolderHandlerType
-}
-
-func (cf *CreateFolder) GetState() HandlerState {
-	return cf.state
-}
-
-func (cf *CreateFolder) GetErrors() []error {
-	return cf.errors
-}
-
-func (cf *CreateFolder) Execute(state map[HandlerType]Handler) {
-	if cf.state != HandlerNotStarted {
-		log.Panic("Cannot execute a handler that has already been executed.")
-	}
-
-	if info, err := os.Stat(cf.FolderName); os.IsNotExist(err) {
-		if err := os.MkdirAll(cf.FolderName, 0755); err != nil {
-			cf.errors = append(cf.errors, fmt.Errorf("Create Folder %s error: %s", cf.FolderName, err.Error()))
-			cf.state = HandlerError
-			return
-		}
-		cf.state = HandlerSuccess
-		return
-	} else if info.IsDir() {
-		cf.errors = append(cf.errors, fmt.Errorf("Create Folder %s error: %s", cf.FolderName, "Folder already exists"))
-		cf.state = HandlerSuccess
-		return
-	}
-	cf.state = HandlerError
-	cf.errors = append(cf.errors, fmt.Errorf("Create Folder %s error: A file exists with the same name", cf.FolderName))
-}
-
-func (cf *CreateFolder) ShouldProceed() bool {
-	return cf.state == HandlerSuccess
-}
