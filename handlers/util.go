@@ -2,13 +2,13 @@ package handlers
 
 import (
 	"fmt"
-	"log"
 	"os"
+	"path/filepath"
 )
 
 // This go file contains utility functions and utility handlers
 
-// StatPath function: Check if a path exists as the given type
+// statPath function: Check if a path exists as the given type
 // Arguments:
 // path: string - the path to check
 // isDir: bool - whether the path should be a directory
@@ -18,62 +18,28 @@ import (
 //   - file if isDir is false
 //
 // bool: whether the path is creatable
-func StatPath(path string, isDir bool) (bool, bool) {
-	if info, err := os.Stat(path); os.IsNotExist(err) {
-		return false, true
-	} else {
+func statPath(p string, isDir bool) (bool, bool) {
+  p = filepath.Clean(p)
+	if info, err := os.Stat(p); os.IsNotExist(err) {
+    return false, true
+	} else if err == nil {
 		return info.IsDir() == isDir, false
-	}
+  }
+  return false, false
 }
-
-// CreateFolder
-
-type CreateFolder struct {
-	state      HandlerState
-	errors     []error
-	FolderName string
-}
-
-func (cf *CreateFolder) GetType() HandlerType {
-	return CreateFolderType
-}
-
-func (cf *CreateFolder) GetState() HandlerState {
-	return cf.state
-}
-
-func (cf *CreateFolder) GetErrors() []error {
-	return cf.errors
-}
-
-func (cf *CreateFolder) Execute(state map[HandlerType]Handler) {
-	if cf.state != HandlerNotStarted {
-		log.Panic("Cannot execute a handler that has already been executed.")
-	}
-
-	isFolder, isCreatable := StatPath(cf.FolderName, true)
+// createFolder
+func createFolder(path string) (bool, error) {
+	isFolder, isCreatable := statPath(path, true)
 	if !isCreatable {
-		var error string
 		if isFolder {
-			error = "Folder already exists"
-			cf.state = HandlerSuccess
+      return true, fmt.Errorf("Create Folder %s error: Folder already exists", path)
 		} else {
-			error = "A file exists with the same name"
-			cf.state = HandlerError
+      return false, fmt.Errorf("Create Folder %s error: A file exists with the same name", path)
 		}
-		cf.errors = append(cf.errors, fmt.Errorf("Create Folder %s error: %s", cf.FolderName, error))
-		return
 	}
 
-	if err := os.MkdirAll(cf.FolderName, 0755); err != nil {
-		cf.errors = append(cf.errors, fmt.Errorf("Create Folder %s error: %s", cf.FolderName, err.Error()))
-		cf.state = HandlerError
-		return
+	if err := os.MkdirAll(path, 0755); err != nil {
+    return false, fmt.Errorf("Create Folder %s error: %s", path, err.Error())
 	}
-	cf.state = HandlerSuccess
-	return
-}
-
-func (cf *CreateFolder) ShouldProceed() bool {
-	return cf.state == HandlerSuccess
+	return true, nil
 }
