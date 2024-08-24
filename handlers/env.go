@@ -15,6 +15,16 @@ const (
 	PluginsFolder
 )
 
+var rfTranslate = map[EnvRepairFlag]string{
+	NvimFolder:    "NvimFolder",
+	EnvimLuaFile:  "EnvimLuaFile",
+	PluginsFolder: "PluginsFolder",
+}
+
+func (rf *EnvRepairFlag) String() string {
+	return rfTranslate[rf]
+}
+
 type CheckEnvironment struct {
 	state  HandlerState
 	rflags []EnvRepairFlag
@@ -35,9 +45,7 @@ func (ce *CheckEnvironment) GetErrors() []error {
 }
 
 func (ce *CheckEnvironment) Execute(state map[HandlerType]Handler) {
-	if ce.state != HandlerNotStarted {
-		log.Panic("Can't execute a handler that's already started.")
-	}
+	confirmExecution(ce)
 
 	ce.state = HandlerError
 
@@ -77,9 +85,80 @@ func (ce *CheckEnvironment) DependsOn() []HandlerType {
 }
 
 func (ce *CheckEnvironment) ShouldProceed() bool {
-	return ce.state != HandlerError
+	return ce.state == HandlerSuccess
 }
 
 func (ce *CheckEnvironment) GetRepairFlags() []EnvRepairFlag {
 	return ce.rflags
+}
+
+// CreateEnvironment creates an environment in a given path
+type CreateEnvironment struct {
+	state  HandlerState
+	errors []error
+	Path   string
+}
+
+func (ce *CreateEnvironment) GetType() HandlerType {
+	return CreateEnvironmentType
+}
+
+func (ce *CreateEnvironment) GetState() HandlerState {
+	return ce.state
+}
+
+func (ce *CreateEnvironment) ShouldProceed() bool {
+	return ce.state == HandlerSuccess
+}
+
+func (ce *CreateEnvironment) GetErrors() []error {
+	return ce.errors
+}
+
+func (ce *CreateEnvironment) DependsOn() []HandlerType {
+	return []HandlerType{CheckEnvironmentType}
+}
+
+func (ce *CreateEnvironment) Execute(state map[HandlerType]Handler) {
+	confirmExecution(ce)
+
+	ce.state = HandlerError
+
+	check := GetHandler[*CheckEnvironment](state)
+
+	if ce.Path == "" {
+		if p, err := os.Getwd(); err != nil {
+			log.Panic("Error getting current working directory")
+		} else {
+			ce.Path = p
+		}
+	}
+
+	for _, rflag := range check.GetRepairFlags() {
+		switch rflag {
+		case NvimFolder:
+			rpath := ".nvim"
+			path := path.Join(ce.Path, rpath)
+			if created, err := createFolder(path); !created {
+				ce.errors = append(ce.errors, err)
+				log.Printf("Folder %s already exists in %s. Skipping...\n", rpath, ce.Path)
+			} else if err != nil {
+				log.Printf("Folder %s already exists in %s. Skipping...\n", rpath, ce.Path)
+			}
+		case EnvimLuaFile:
+		case PluginsFolder:
+			rpath := path.Join(".nvim", "plugins")
+			path := path.Join(ce.Path, rpath)
+			if created, err := createFolder(path); !created {
+				ce.errors = append(ce.errors, err)
+				log.Printf("Folder %s already exists in %s. Skipping...\n", rpath, ce.Path)
+			} else if err != nil {
+				log.Printf("Folder %s already exists in %s. Skipping...\n", rpath, ce.Path)
+			}
+		default:
+			log.Panic("%s: There is no implementation for %s EnvRepairFlag", ce.GetType(), rflag)
+		}
+	}
+
+	ce.state = HandlerSuccess
 }
