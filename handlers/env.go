@@ -21,7 +21,7 @@ var rfTranslate = map[EnvRepairFlag]string{
 	PluginsFolder: "PluginsFolder",
 }
 
-func (rf *EnvRepairFlag) String() string {
+func (rf EnvRepairFlag) String() string {
 	return rfTranslate[rf]
 }
 
@@ -47,7 +47,7 @@ func (ce *CheckEnvironment) GetErrors() []error {
 func (ce *CheckEnvironment) Execute(state map[HandlerType]Handler) {
 	confirmExecution(ce)
 
-	ce.state = HandlerError
+	ce.state = HandlerErrorState
 
 	if ce.Path == "" {
 		if p, err := os.Getwd(); err != nil {
@@ -76,7 +76,7 @@ func (ce *CheckEnvironment) Execute(state map[HandlerType]Handler) {
 	}
 
 	if len(ce.errors) == 0 {
-		ce.state = HandlerSuccess
+		ce.state = HandlerSuccessState
 	}
 }
 
@@ -85,7 +85,7 @@ func (ce *CheckEnvironment) DependsOn() []HandlerType {
 }
 
 func (ce *CheckEnvironment) ShouldProceed() bool {
-	return ce.state == HandlerSuccess
+	return ce.state == HandlerSuccessState
 }
 
 func (ce *CheckEnvironment) GetRepairFlags() []EnvRepairFlag {
@@ -108,7 +108,7 @@ func (ce *CreateEnvironment) GetState() HandlerState {
 }
 
 func (ce *CreateEnvironment) ShouldProceed() bool {
-	return ce.state == HandlerSuccess
+	return ce.state == HandlerSuccessState
 }
 
 func (ce *CreateEnvironment) GetErrors() []error {
@@ -122,7 +122,7 @@ func (ce *CreateEnvironment) DependsOn() []HandlerType {
 func (ce *CreateEnvironment) Execute(state map[HandlerType]Handler) {
 	confirmExecution(ce)
 
-	ce.state = HandlerError
+	ce.state = HandlerErrorState
 
 	check := GetHandler[*CheckEnvironment](state)
 
@@ -156,9 +156,9 @@ func (ce *CreateEnvironment) Execute(state map[HandlerType]Handler) {
 				log.Printf("Folder %s already exists in %s. Skipping...\n", rpath, ce.Path)
 			}
 		default:
-			log.Panic("%s: There is no implementation for %s EnvRepairFlag", ce.GetType(), rflag)
+			log.Panicf("%s: There is no implementation for %s EnvRepairFlag", ce.GetType(), rflag)
 		}
 	}
 
-	ce.state = HandlerSuccess
+	ce.state = HandlerSuccessState
 }

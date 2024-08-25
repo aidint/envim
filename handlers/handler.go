@@ -25,9 +25,9 @@ func (h HandlerType) String() string {
 type HandlerState int
 
 const (
-	HandlerNotStarted = iota
-	HandlerError
-	HandlerSuccess
+	HandlerNotStartedState = iota
+	HandlerErrorState
+	HandlerSuccessState
 )
 
 type Handler interface {
@@ -40,7 +40,7 @@ type Handler interface {
 }
 
 func confirmExecution(h Handler) {
-	if h.GetState() != HandlerNotStarted {
+	if h.GetState() != HandlerNotStartedState {
 		log.Panicf("%s: Cannot execute a handler that has already been executed", h.GetType())
 	}
 }
@@ -50,12 +50,12 @@ func GetHandler[T Handler](state map[HandlerType]Handler) T {
   t := result.GetType()
 	if h, ok := state[t]; ok {
 		if result, ok = h.(T); !ok {
-			log.Panic("Something wierd happened: " + 
+			log.Panicf("Something wierd happened: " + 
         "The %s in the execution state doesn't cast into its own type." +
         "Probably a duplicate in GetType.", t)
 		}
 	} else {
-		log.Panic("There is no %s in the current execution state.", t)
+		log.Panicf("There is no %s in the current execution state.", t)
 	}
 	return result
 }
@@ -89,7 +89,7 @@ func (c *ChainHandler) GetErrors() []error {
 }
 
 func (c *ChainHandler) AddHandler(h Handler) {
-	if c.state != HandlerNotStarted {
+	if c.state != HandlerNotStartedState {
 		log.Panic("Cannot add a handler to a chain that has already been executed.")
 	}
 
@@ -118,13 +118,13 @@ func (c *ChainHandler) Execute(state map[HandlerType]Handler) {
 
 		if !h.ShouldProceed() {
 			c.proceed = false
-			c.state = HandlerError
+			c.state = HandlerErrorState
 			return
 		}
 
 	}
 	c.proceed = true
-	c.state = HandlerSuccess
+	c.state = HandlerSuccessState
 }
 
 func (c *ChainHandler) DependsOn() []HandlerType {
