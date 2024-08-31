@@ -41,16 +41,96 @@ func TestCheckEnvironmentHandler(t *testing.T) {
 		fileList         []string
 		expectedErrCount int
 		expectedFlags    []EnvRepairFlag
+		expectedState    HandlerState
 	}{
-		{[]string{}, []string{}, 0, []EnvRepairFlag{NvimFolder, EnvimLuaFile, PluginsFolder}},
-		{[]string{}, []string{".nvim"}, 3, []EnvRepairFlag{}},
-		{[]string{".nvim"}, []string{}, 0, []EnvRepairFlag{EnvimLuaFile, PluginsFolder}},
-		{[]string{".nvim", path.Join(".nvim", "envim.lua")}, []string{}, 1, []EnvRepairFlag{PluginsFolder}},
-		{[]string{".nvim"}, []string{path.Join(".nvim", "envim.lua")}, 0, []EnvRepairFlag{PluginsFolder}},
-		{[]string{".nvim"}, []string{path.Join(".nvim", "envim.lua"),
-			path.Join(".nvim", "plugins")}, 1, []EnvRepairFlag{}},
-		{[]string{".nvim", path.Join(".nvim", "plugins")}, []string{
-			path.Join(".nvim", "envim.lua")}, 0, []EnvRepairFlag{}},
+		// Case 1
+		{
+			[]string{},
+			[]string{},
+			0,
+			[]EnvRepairFlag{
+				NvimFolder,
+				EnvimLuaFile,
+				PluginsFolder,
+			},
+			HandlerSuccessState,
+		},
+		// Case 2
+		{
+			[]string{},
+			[]string{
+				".nvim",
+			},
+			3,
+			[]EnvRepairFlag{},
+			HandlerErrorState,
+		},
+		// Case 3
+		{
+			[]string{
+				".nvim",
+			},
+			[]string{},
+			0,
+			[]EnvRepairFlag{
+				EnvimLuaFile,
+				PluginsFolder,
+			},
+			HandlerSuccessState,
+		},
+		// Case 4
+		{
+			[]string{
+				".nvim",
+				path.Join(".nvim", "envim.lua"),
+			},
+			[]string{},
+			1,
+			[]EnvRepairFlag{
+				PluginsFolder,
+			},
+			HandlerErrorState,
+		},
+		// Case 5
+		{
+			[]string{
+				".nvim",
+			},
+			[]string{
+				path.Join(".nvim", "envim.lua"),
+			},
+			0,
+			[]EnvRepairFlag{
+				PluginsFolder,
+			},
+			HandlerSuccessState,
+		},
+		// Case 6
+		{
+			[]string{
+				".nvim",
+			},
+			[]string{
+				path.Join(".nvim", "envim.lua"),
+				path.Join(".nvim", "plugins"),
+			},
+			1,
+			[]EnvRepairFlag{},
+			HandlerErrorState,
+		},
+		// Case 7
+		{
+			[]string{
+				".nvim",
+				path.Join(".nvim", "plugins"),
+			},
+			[]string{
+				path.Join(".nvim", "envim.lua"),
+			},
+			0,
+			[]EnvRepairFlag{},
+			HandlerSuccessState,
+		},
 	}
 
 	for _, tc := range tests {
@@ -64,10 +144,24 @@ func TestCheckEnvironmentHandler(t *testing.T) {
 			t.Parallel()
 			dir := touchFoldersAndFiles(t, tc.folderList, tc.fileList)
 			ce := CheckEnvironment{Path: dir}
+			require.Equal(t,
+				ce.GetType(),
+				CheckEnvironmentType,
+				"Expected type: %s, returned type: %s",
+				CheckEnvironmentType,
+				ce.GetType())
+
+			require.Equal(t,
+				ce.DependsOn(),
+				[]HandlerType{},
+				"Expected dependencies: %s, returned dependencies: %s",
+				[]HandlerType{},
+				ce.DependsOn())
+
 			ce.Execute(nil)
 
-			if len(ce.errors) != tc.expectedErrCount {
-				t.Errorf("Expected number of errors: %d, returned number of errors: %d", tc.expectedErrCount, len(ce.errors))
+			if len(ce.GetErrors()) != tc.expectedErrCount {
+				t.Errorf("Expected number of errors: %d, returned number of errors: %d", tc.expectedErrCount, len(ce.GetErrors()))
 			}
 
 			require.ElementsMatchf(t,
@@ -76,6 +170,12 @@ func TestCheckEnvironmentHandler(t *testing.T) {
 				"Expected flags: %s, returned flags: %s",
 				strings.Join(transliterate(tc.expectedFlags), ", "),
 				strings.Join(transliterate(ce.GetRepairFlags()), ", "))
+
+			require.True(t,
+				ce.ShouldProceed() == (ce.GetState() == HandlerSuccessState),
+				"ShouldProceed() and GetState() should be in sync. If the state is error, we should not proceed, "+
+					"Otherwise we should.")
+
 		})
 	}
 }

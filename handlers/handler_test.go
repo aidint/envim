@@ -2,75 +2,113 @@ package handlers
 
 import (
 	"fmt"
-	"os"
-	"path"
-	"strings"
-	"testing"
-
 	"github.com/stretchr/testify/require"
+	"testing"
 )
 
-func touchFoldersAndFiles(t *testing.T, folders []string, files []string) string {
-	dir := t.TempDir()
-	for _, folderName := range folders {
-		if err := os.MkdirAll(path.Join(dir, folderName), 0755); err != nil {
-			t.Fatalf("Can't create folder %s", folderName)
-		}
-	}
-
-	for _, fileName := range files {
-		if _, err := os.OpenFile(path.Join(dir, fileName), os.O_CREATE, 0644); err != nil {
-			t.Fatalf("Can't create file %s", fileName)
-		}
-	}
-
-	return dir
+type mockHandler struct {
+	state         HandlerState
+	errors        []error
+	postExecState HandlerState
+	shouldProceed bool
+	dependencies  []HandlerType
 }
 
-func transliterate[S ~[]E, E fmt.Stringer](l S) []string {
-	var res []string
-	for _, val := range l {
-		res = append(res, val.String())
-	}
-	return res
+func (mh *mockHandler) GetType() HandlerType {
+	return BaseType
 }
 
-func TestCheckEnvironmentHandler(t *testing.T) {
+func (mh *mockHandler) GetState() HandlerState {
+	return mh.state
+}
 
-	var tests = []struct {
-		folderList       []string
-		fileList         []string
-		expectedErrCount int
-		expectedFlags    []EnvRepairFlag
+func (mh *mockHandler) GetErrors() []error {
+	return mh.errors
+}
+
+func (mh *mockHandler) Execute(state map[HandlerType]Handler) {
+	mh.state = mh.postExecState
+}
+
+func (mh *mockHandler) ShouldProceed() bool {
+	return mh.shouldProceed
+}
+
+func (mh *mockHandler) DependsOn() []HandlerType {
+	return mh.dependencies
+}
+
+type endState struct {
+	state      HandlerState
+	errorCount int
+	proceed    bool
+}
+
+func TestChainHandler(t *testing.T) {
+	tests := []struct {
+		mocks []mockHandler
+		end   endState
 	}{
-		{[]string{}, []string{}, 0, []EnvRepairFlag{NvimFolder, EnvimLuaFile, PluginsFolder}},
-		{[]string{}, []string{".nvim"}, 3, []EnvRepairFlag{}},
-    {[]string{".nvim"}, []string{".plugins"}, 1, []EnvRepairFlag{EnvimLuaFile}},
+		// Test 1
+		{
+			mocks: []mockHandler{
+				{
+					postExecState: HandlerSuccessState,
+					shouldProceed: true,
+				},
+				{
+					postExecState: HandlerSuccessState,
+					shouldProceed: true,
+				},
+			},
+			end: endState{
+				state:      HandlerSuccessState,
+				errorCount: 0,
+				proceed:    true,
+			},
+		},
+		// Test 2
+		{
+			mocks: []mockHandler{
+				{
+					postExecState: HandlerErrorState,
+					shouldProceed: true,
+				},
+				{
+					postExecState: HandlerSuccessState,
+					shouldProceed: false,
+				},
+			},
+			end: endState{
+				state:      HandlerErrorState,
+				errorCount: 0,
+        proceed:    false,
+			},
+		},
 	}
 
-	for _, tc := range tests {
-		name := strings.Join(append(tc.folderList, tc.fileList...), ", ")
-		if name == "" {
-			name = "Empty"
-		} else {
-      name = fmt.Sprintf("{ %s }", name)
-    }
-		t.Run(name, func(t *testing.T) {
+	for idx, test := range tests {
+		ch := &ChainHandler{}
+		for _, mh := range test.mocks {
+			ch.AddHandler(&mh)
+		}
+		t.Run(fmt.Sprintf("Test %d", idx+1), func(t *testing.T) {
 			t.Parallel()
-			dir := touchFoldersAndFiles(t, tc.folderList, tc.fileList)
-			ce := CheckEnvironment{Path: dir}
-			ce.Execute(nil)
+			ch.Execute(nil)
+			require.Equal(t,
+				test.end.state,
+				ch.GetState(),
+				"Expected state: %s, returned state: %s",
+				test.end.state,
+				ch.GetState())
 
-			if len(ce.errors) != tc.expectedErrCount {
-				t.Errorf("Expected number of errors: %d, returned number of errors: %d", tc.expectedErrCount, len(ce.errors))
-			}
-
-			require.ElementsMatchf(t,
-				ce.GetRepairFlags(),
-				tc.expectedFlags,
-				"Expected flags: %s, returned flags: %s",
-				strings.Join(transliterate(tc.expectedFlags), ", "),
-				strings.Join(transliterate(ce.GetRepairFlags()), ", "))
+			require.Equal(t,
+				test.end.errorCount,
+				len(ch.GetErrors()),
+				"Expected number of errors: %d, returned number of errors: %d",
+				test.end.errorCount,
+				len(ch.GetErrors()))
 		})
 	}
+
 }

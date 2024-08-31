@@ -7,12 +7,14 @@ import (
 type HandlerType int
 
 const (
-	ChainType HandlerType = iota
+  BaseType HandlerType = iota
+	ChainType
 	CheckEnvironmentType
 	CreateEnvironmentType
 )
 
 var hTranslate = map[HandlerType]string{
+  BaseType:              "Base",
 	ChainType:             "Chain",
 	CheckEnvironmentType:  "CheckEnvironment",
 	CreateEnvironmentType: "CreateEnvironment",
@@ -29,6 +31,19 @@ const (
 	HandlerErrorState
 	HandlerSuccessState
 )
+
+func (s HandlerState) String() string {
+  switch s {
+  case HandlerNotStartedState:
+    return "Not Started"
+  case HandlerErrorState:
+    return "Error"
+  case HandlerSuccessState:
+    return "Success"
+  default:
+    return "Unknown"
+  }
+}
 
 type Handler interface {
 	Execute(map[HandlerType]Handler)
@@ -131,10 +146,3 @@ func (c *ChainHandler) DependsOn() []HandlerType {
 	return []HandlerType{}
 }
 
-func (c *ChainHandler) GetHandler(t HandlerType) Handler {
-	if h, ok := c.exeMap[t]; ok {
-		return h
-	} else {
-		return nil
-	}
-}
