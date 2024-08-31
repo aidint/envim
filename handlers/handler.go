@@ -1,27 +1,29 @@
 package handlers
 
 import (
+	"fmt"
 	"log"
 )
 
 type HandlerType int
 
 const (
-  BaseType HandlerType = iota
-	ChainType
+	ChainType HandlerType = iota
 	CheckEnvironmentType
 	CreateEnvironmentType
 )
 
 var hTranslate = map[HandlerType]string{
-  BaseType:              "Base",
 	ChainType:             "Chain",
 	CheckEnvironmentType:  "CheckEnvironment",
 	CreateEnvironmentType: "CreateEnvironment",
 }
 
 func (h HandlerType) String() string {
-	return hTranslate[h]
+	if h > 0 {
+		return hTranslate[h]
+	}
+	return fmt.Sprintf("Mock %d", -1*h)
 }
 
 type HandlerState int
@@ -33,16 +35,16 @@ const (
 )
 
 func (s HandlerState) String() string {
-  switch s {
-  case HandlerNotStartedState:
-    return "Not Started"
-  case HandlerErrorState:
-    return "Error"
-  case HandlerSuccessState:
-    return "Success"
-  default:
-    return "Unknown"
-  }
+	switch s {
+	case HandlerNotStartedState:
+		return "Not Started"
+	case HandlerErrorState:
+		return "Error"
+	case HandlerSuccessState:
+		return "Success"
+	default:
+		return "Unknown"
+	}
 }
 
 type Handler interface {
@@ -62,12 +64,12 @@ func confirmExecution(h Handler) {
 
 func GetHandler[T Handler](state map[HandlerType]Handler) T {
 	var result T
-  t := result.GetType()
+	t := result.GetType()
 	if h, ok := state[t]; ok {
 		if result, ok = h.(T); !ok {
-			log.Panicf("Something wierd happened: " + 
-        "The %s in the execution state doesn't cast into its own type." +
-        "Probably a duplicate in GetType.", t)
+			log.Panicf("Something wierd happened: "+
+				"The %s in the execution state doesn't cast into its own type."+
+				"Probably a duplicate in GetType.", t)
 		}
 	} else {
 		log.Panicf("There is no %s in the current execution state.", t)
@@ -80,11 +82,12 @@ func GetHandler[T Handler](state map[HandlerType]Handler) T {
 // any undetermined dependencies.
 
 type ChainHandler struct {
-	chain   []Handler
-	errors  []error
-	exeMap  map[HandlerType]Handler
-	state   HandlerState
-	proceed bool
+	chain      []Handler
+	errors     []error
+	ExeMap     map[HandlerType]Handler
+	state      HandlerState
+	proceed    bool
+	registered map[HandlerType]bool
 }
 
 func (c *ChainHandler) GetType() HandlerType {
@@ -108,31 +111,34 @@ func (c *ChainHandler) AddHandler(h Handler) {
 		log.Panic("Cannot add a handler to a chain that has already been executed.")
 	}
 
+	if c.registered == nil {
+		c.registered = make(map[HandlerType]bool)
+	}
+
 	for _, d := range h.DependsOn() {
-		if _, ok := c.exeMap[d]; !ok {
-			log.Panicf("Handler %s depends on %s, but %s is not in the chain.", h.GetType(), d, d)
+		if _, ok := c.registered[d]; !ok {
+			if _, ok := c.ExeMap[d]; !ok {
+				log.Panicf("Handler %s depends on %s, but %s is not in the chain.", h.GetType(), d, d)
+			}
 		}
 	}
+
 	c.chain = append(c.chain, h)
+	c.registered[h.GetType()] = true
 }
 
 func (c *ChainHandler) Execute(state map[HandlerType]Handler) {
 
 	confirmExecution(c)
 
-	c.exeMap = make(map[HandlerType]Handler)
-
-	if state != nil {
-		c.exeMap = state
-	}
+	c.ExeMap = make(map[HandlerType]Handler)
 
 	for _, h := range c.chain {
-		h.Execute(c.exeMap)
-		c.exeMap[h.GetType()] = h
+		h.Execute(c.ExeMap)
+		c.ExeMap[h.GetType()] = h
 		c.errors = append(c.errors, h.GetErrors()...)
 
 		if !h.ShouldProceed() {
-			c.proceed = false
 			c.state = HandlerErrorState
 			return
 		}
@@ -145,4 +151,3 @@ func (c *ChainHandler) Execute(state map[HandlerType]Handler) {
 func (c *ChainHandler) DependsOn() []HandlerType {
 	return []HandlerType{}
 }
-

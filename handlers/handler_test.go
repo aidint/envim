@@ -12,10 +12,11 @@ type mockHandler struct {
 	postExecState HandlerState
 	shouldProceed bool
 	dependencies  []HandlerType
+	handlerType   HandlerType
 }
 
 func (mh *mockHandler) GetType() HandlerType {
-	return BaseType
+	return mh.handlerType
 }
 
 func (mh *mockHandler) GetState() HandlerState {
@@ -46,19 +47,22 @@ type endState struct {
 
 func TestChainHandler(t *testing.T) {
 	tests := []struct {
-		mocks []mockHandler
-		end   endState
+		mocks      []mockHandler
+		end        endState
+		initExeMap map[HandlerType]Handler
 	}{
-		// Test 1
+		// Case 1
 		{
 			mocks: []mockHandler{
 				{
 					postExecState: HandlerSuccessState,
 					shouldProceed: true,
+					handlerType:   -1,
 				},
 				{
 					postExecState: HandlerSuccessState,
 					shouldProceed: true,
+					handlerType:   -2,
 				},
 			},
 			end: endState{
@@ -67,34 +71,79 @@ func TestChainHandler(t *testing.T) {
 				proceed:    true,
 			},
 		},
-		// Test 2
+		// Case 2
 		{
 			mocks: []mockHandler{
 				{
 					postExecState: HandlerErrorState,
 					shouldProceed: true,
+					errors:        []error{fmt.Errorf("Error 1")},
+					handlerType:   -1,
 				},
 				{
 					postExecState: HandlerSuccessState,
+					errors:        []error{fmt.Errorf("Error 2")},
+					shouldProceed: true,
+					handlerType:   -2,
+					dependencies:  []HandlerType{-1},
+				},
+			},
+			end: endState{
+				state:      HandlerSuccessState,
+				errorCount: 2,
+				proceed:    true,
+			},
+		},
+		{
+			mocks: []mockHandler{
+				{
+					postExecState: HandlerSuccessState,
+					shouldProceed: true,
+					handlerType:   -1,
+				},
+				{
+					postExecState: HandlerSuccessState,
+					errors:        []error{fmt.Errorf("Error 2")},
 					shouldProceed: false,
+					handlerType:   -2,
+					dependencies:  []HandlerType{-1, -3},
 				},
 			},
 			end: endState{
 				state:      HandlerErrorState,
-				errorCount: 0,
-        proceed:    false,
+				errorCount: 1,
+				proceed:    false,
+			},
+			initExeMap: map[HandlerType]Handler{
+				-3: nil,
 			},
 		},
 	}
 
 	for idx, test := range tests {
-		ch := &ChainHandler{}
+		ch := &ChainHandler{ExeMap: test.initExeMap}
 		for _, mh := range test.mocks {
 			ch.AddHandler(&mh)
 		}
 		t.Run(fmt.Sprintf("Test %d", idx+1), func(t *testing.T) {
 			t.Parallel()
+
+			require.Equal(t,
+				ch.GetType(),
+				ChainType,
+				"Expected type: %s, returned type: %s",
+				CheckEnvironmentType,
+				ch.GetType())
+
+			require.Equal(t,
+				ch.DependsOn(),
+				[]HandlerType{},
+				"Expected dependencies: %s, returned dependencies: %s",
+				[]HandlerType{},
+				ch.DependsOn())
+
 			ch.Execute(nil)
+
 			require.Equal(t,
 				test.end.state,
 				ch.GetState(),
@@ -108,6 +157,32 @@ func TestChainHandler(t *testing.T) {
 				"Expected number of errors: %d, returned number of errors: %d",
 				test.end.errorCount,
 				len(ch.GetErrors()))
+
+			require.Equal(t,
+				ch.ShouldProceed(),
+				test.end.proceed,
+				"Expected proceed: %t, returned proceed: %t",
+				test.end.proceed,
+				ch.ShouldProceed())
+
+			ekeys := make([]HandlerType, 0, len(ch.ExeMap))
+			for ht := range ch.ExeMap {
+				ekeys = append(ekeys, ht)
+			}
+
+			mockKeys := make([]HandlerType, 0, len(test.mocks))
+			for _, mh := range test.mocks {
+				mockKeys = append(mockKeys, mh.handlerType)
+			}
+
+			require.ElementsMatch(t,
+				ekeys,
+				mockKeys,
+				"Expected execMap keys: %v, returned execMap keys: %v",
+				mockKeys,
+				ekeys,
+			)
+
 		})
 	}
 
