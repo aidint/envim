@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"envim/assets"
 	"fmt"
 	"log"
 	"os"
@@ -25,6 +26,17 @@ func (rf EnvRepairFlag) String() string {
 	return rfTranslate[rf]
 }
 
+/*
+CheckEnvironment checks if the environment is setup correctly.
+We can set the path to check the environment in a different directory,
+but by default it checks the current working directory.
+It collects a list of repair flags defined earlier as EnvRepairFlag type.
+It also collects a list of errors if any are encountered.
+Based on the errors it'll change the handler state,
+if handler state is not `HandlerSuccessState` it will send a stop signal
+to the chain handler running it.
+*/
+
 type CheckEnvironment struct {
 	state  HandlerState
 	rflags []EnvRepairFlag
@@ -45,7 +57,7 @@ func (ce *CheckEnvironment) GetErrors() []error {
 }
 
 func (ce *CheckEnvironment) Execute(state map[HandlerType]Handler) {
-	confirmExecution(ce)
+	prepareExecution(ce)
 
 	ce.state = HandlerErrorState
 
@@ -92,73 +104,81 @@ func (ce *CheckEnvironment) GetRepairFlags() []EnvRepairFlag {
 	return ce.rflags
 }
 
-// CreateEnvironment creates an environment in a given path
-type CreateEnvironment struct {
+/*
+RepairEnvironment handler repairs the envim environment in the given path.
+It depends on CheckEnvironment and therefore takes the path from it.
+*/
+type RepairEnvironment struct {
 	state  HandlerState
 	errors []error
-	Path   string
 }
 
-func (ce *CreateEnvironment) GetType() HandlerType {
-	return CreateEnvironmentType
+func (re *RepairEnvironment) GetType() HandlerType {
+	return RepairEnvironmentType
 }
 
-func (ce *CreateEnvironment) GetState() HandlerState {
-	return ce.state
+func (re *RepairEnvironment) GetState() HandlerState {
+	return re.state
 }
 
-func (ce *CreateEnvironment) ShouldProceed() bool {
-	return ce.state == HandlerSuccessState
+func (re *RepairEnvironment) ShouldProceed() bool {
+	return re.state == HandlerSuccessState
 }
 
-func (ce *CreateEnvironment) GetErrors() []error {
-	return ce.errors
+func (re *RepairEnvironment) GetErrors() []error {
+	return re.errors
 }
 
-func (ce *CreateEnvironment) DependsOn() []HandlerType {
+func (re *RepairEnvironment) DependsOn() []HandlerType {
 	return []HandlerType{CheckEnvironmentType}
 }
 
-func (ce *CreateEnvironment) Execute(state map[HandlerType]Handler) {
-	confirmExecution(ce)
-
-	ce.state = HandlerErrorState
-
-	check := GetHandler[*CheckEnvironment](state)
-
-	if ce.Path == "" {
-		if p, err := os.Getwd(); err != nil {
-			log.Panic("Error getting current working directory")
-		} else {
-			ce.Path = p
-		}
+func createConfigFile(filePath string) error {
+	if err := os.WriteFile(filePath, []byte(assets.SampleConfig), 0644); err != nil {
+		return err
 	}
+	return nil
+}
 
-	for _, rflag := range check.GetRepairFlags() {
+
+func (re *RepairEnvironment) Execute(state map[HandlerType]Handler) {
+	prepareExecution(re)
+
+	re.state = HandlerErrorState
+
+	ce := GetHandler[*CheckEnvironment](state)
+
+	for _, rflag := range ce.GetRepairFlags() {
+    
 		switch rflag {
+
 		case NvimFolder:
 			rpath := ".nvim"
-			path := path.Join(ce.Path, rpath)
-			if created, err := createFolder(path); !created {
-				ce.errors = append(ce.errors, err)
-				log.Printf("Folder %s already exists in %s. Skipping...\n", rpath, ce.Path)
-			} else if err != nil {
-				log.Printf("Folder %s already exists in %s. Skipping...\n", rpath, ce.Path)
+			p := path.Join(ce.Path, rpath)
+			if _, err := createFolder(p); err != nil {
+        // We should panic because this should not happen
+        // and we can not recover from this
+				log.Panic(err)
 			}
+
 		case EnvimLuaFile:
+      rpath := path.Join(".nvim", "envim.lua")
+      p := path.Join(ce.Path, rpath)
+      if err := createConfigFile(p); err != nil {
+        log.Panic(err)
+      }
 		case PluginsFolder:
 			rpath := path.Join(".nvim", "plugins")
-			path := path.Join(ce.Path, rpath)
-			if created, err := createFolder(path); !created {
-				ce.errors = append(ce.errors, err)
-				log.Printf("Folder %s already exists in %s. Skipping...\n", rpath, ce.Path)
-			} else if err != nil {
-				log.Printf("Folder %s already exists in %s. Skipping...\n", rpath, ce.Path)
+			p := path.Join(ce.Path, rpath)
+			if _, err := createFolder(p); err != nil {
+				log.Panic(err)
 			}
+
 		default:
-			log.Panicf("%s: There is no implementation for %s EnvRepairFlag", ce.GetType(), rflag)
+			log.Panicf("%s: There is no implementation for %s EnvRepairFlag", re.GetType(), rflag)
+
 		}
 	}
 
-	ce.state = HandlerSuccessState
+	re.state = HandlerSuccessState
 }

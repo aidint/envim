@@ -1,4 +1,4 @@
-package luafiles
+package assets
 import (
   _ "embed"
 )

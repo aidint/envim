@@ -10,13 +10,13 @@ type HandlerType int
 const (
 	ChainType HandlerType = iota
 	CheckEnvironmentType
-	CreateEnvironmentType
+	RepairEnvironmentType
 )
 
 var hTranslate = map[HandlerType]string{
 	ChainType:             "Chain",
 	CheckEnvironmentType:  "CheckEnvironment",
-	CreateEnvironmentType: "CreateEnvironment",
+	RepairEnvironmentType: "RepairEnvironment",
 }
 
 func (h HandlerType) String() string {
@@ -29,7 +29,7 @@ func (h HandlerType) String() string {
 type HandlerState int
 
 const (
-	HandlerNotStartedState = iota
+	HandlerNotStartedState HandlerState = iota
 	HandlerErrorState
 	HandlerSuccessState
 )
@@ -56,7 +56,7 @@ type Handler interface {
 	DependsOn() []HandlerType
 }
 
-func confirmExecution(h Handler) {
+func prepareExecution(h Handler) {
 	if h.GetState() != HandlerNotStartedState {
 		log.Panicf("%s: Cannot execute a handler that has already been executed", h.GetType())
 	}
@@ -129,7 +129,7 @@ func (c *ChainHandler) AddHandler(h Handler) {
 
 func (c *ChainHandler) Execute(state map[HandlerType]Handler) {
 
-	confirmExecution(c)
+	prepareExecution(c)
 
 	c.ExeMap = make(map[HandlerType]Handler)
 

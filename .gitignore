@@ -1,4 +1,4 @@
 *.lua
-!luafiles/**/*.lua
+!assets/**/*.lua
 .nvim
 .envim

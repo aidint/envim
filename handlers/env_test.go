@@ -179,3 +179,37 @@ func TestCheckEnvironmentHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestRepairEnvironmentHandler(t *testing.T) {
+	tests := []struct {
+		// folders to be created in the environment before execution
+		folders    []string
+		testFlags []EnvRepairFlag
+	}{
+		{
+      folders: []string{},
+      testFlags: []EnvRepairFlag{NvimFolder, EnvimLuaFile, PluginsFolder},
+		},
+		{
+      folders: []string{".nvim"},
+      testFlags: []EnvRepairFlag{EnvimLuaFile, PluginsFolder},
+		},
+	}
+
+	for _, tc := range tests {
+		temp := []string{}
+		for _, flag := range tc.testFlags {
+			temp = append(temp, flag.String())
+		}
+		name := strings.Join(temp, ", ")
+    dir := touchFoldersAndFiles(t, tc.folders, []string{})
+
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ce := &CheckEnvironment{rflags: tc.testFlags, Path: dir}
+			re := RepairEnvironment{}
+			re.Execute(map[HandlerType]Handler{CheckEnvironmentType: ce})
+			require.Equal(t, HandlerSuccessState, re.GetState(), "Expected state: %s, returned state: %s", HandlerSuccessState, re.GetState())
+		})
+	}
+}
